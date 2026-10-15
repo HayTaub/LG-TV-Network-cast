@@ -70,9 +70,12 @@ namespace LGNetworkCast
 
             _idleIcon = LoadIcon("tray-idle.ico");
             _liveIcon = LoadIcon("tray-live.ico");
-            _tray = new Forms.NotifyIcon { Icon = _idleIcon, Text = "LG Network Cast", Visible = true, ContextMenuStrip = new Forms.ContextMenuStrip() };
-            _tray.ContextMenuStrip.Opening += (s, ev) => BuildTrayMenu();
-            _tray.MouseClick += (s, ev) => { if (ev.Button == Forms.MouseButtons.Left) ToggleWindow(); };
+            _tray = new Forms.NotifyIcon { Icon = _idleIcon, Text = "LG Network Cast", Visible = true };
+            _tray.MouseClick += (s, ev) =>
+            {
+                if (ev.Button == Forms.MouseButtons.Left) ToggleWindow();
+                else if (ev.Button == Forms.MouseButtons.Right) TrayMenu.ShowAtCursor();
+            };
 
             // Windows 11 hides new tray icons behind "^". Show ours the first time; later user choices are kept.
             Task.Delay(TimeSpan.FromSeconds(3)).ContinueWith(_ => PromoteTrayIcon());
@@ -233,62 +236,7 @@ namespace LGNetworkCast
             _window?.Refresh();
         }
 
-        // ---- Tray -------------------------------------------------------------------------------
-
-        void BuildTrayMenu()
-        {
-            var m = _tray.ContextMenuStrip;
-            m.Items.Clear();
-            var sharing = Cast.State != CastState.Idle;
-
-            var share = new Forms.ToolStripMenuItem(sharing ? "Stop Sharing" : "Start Sharing", null, (s, e) => Run(() => Cast.ToggleAsync()))
-            { Font = new Font(m.Font, System.Drawing.FontStyle.Bold), ShortcutKeyDisplayString = Settings.Hotkeys.ToggleShare };
-            m.Items.Add(share);
-            m.Items.Add(new Forms.ToolStripMenuItem(Cast.ClockShowing ? "Hide Clock" : "Show Clock on TV", null, (s, e) => Run(() => Cast.ToggleClockAsync()))
-            { ShortcutKeyDisplayString = Settings.Hotkeys.ToggleClock });
-
-            var displays = new Forms.ToolStripMenuItem("Display");
-            var monitors = Monitors.List();
-            for (var i = 0; i < monitors.Count; i++)
-            {
-                var index = i;
-                displays.DropDownItems.Add(new Forms.ToolStripMenuItem($"{monitors[i].Label}  ({monitors[i].Detail})", null, (s, e) =>
-                {
-                    Settings.MonitorIndex = index;
-                    Settings.Save();
-                    _window?.Refresh();
-                }) { Checked = Settings.MonitorIndex == i });
-            }
-            m.Items.Add(displays);
-
-            if (Settings.Tvs.Count > 1)
-            {
-                var tvs = new Forms.ToolStripMenuItem("TV");
-                foreach (var tv in Settings.Tvs)
-                {
-                    var t = tv;
-                    tvs.DropDownItems.Add(new Forms.ToolStripMenuItem(tv.Name, null, (s, e) =>
-                    {
-                        Settings.DefaultTvId = t.Id;
-                        Settings.Save();
-                        _window?.Refresh();
-                    }) { Checked = Settings.DefaultTv == tv });
-                }
-                m.Items.Add(tvs);
-            }
-
-            m.Items.Add(new Forms.ToolStripSeparator());
-            m.Items.Add(new Forms.ToolStripMenuItem("Turn TV On", null, (s, e) => Run(() => Cast.TurnOnAsync())) { ShortcutKeyDisplayString = Settings.Hotkeys.TvOn });
-            m.Items.Add(new Forms.ToolStripMenuItem("Turn TV Off", null, (s, e) => Run(() => Cast.TurnOffAsync())) { ShortcutKeyDisplayString = Settings.Hotkeys.TvOff });
-            var volume = new Forms.ToolStripMenuItem("Volume");
-            volume.DropDownItems.Add(new Forms.ToolStripMenuItem("Volume Up", null, (s, e) => Run(() => Cast.VolumeStepAsync(true))) { ShortcutKeyDisplayString = Settings.Hotkeys.VolumeUp });
-            volume.DropDownItems.Add(new Forms.ToolStripMenuItem("Volume Down", null, (s, e) => Run(() => Cast.VolumeStepAsync(false))) { ShortcutKeyDisplayString = Settings.Hotkeys.VolumeDown });
-            volume.DropDownItems.Add(new Forms.ToolStripMenuItem("Mute / Unmute", null, (s, e) => Run(() => Cast.ToggleMuteAsync())) { ShortcutKeyDisplayString = Settings.Hotkeys.Mute });
-            m.Items.Add(volume);
-            m.Items.Add(new Forms.ToolStripSeparator());
-            m.Items.Add(new Forms.ToolStripMenuItem("Open LG Network Cast", null, (s, e) => ShowWindow()));
-            m.Items.Add(new Forms.ToolStripMenuItem("Exit", null, (s, e) => ExitApp()));
-        }
+        public void RefreshWindow() => _window?.Refresh();
 
         // ---- Window -----------------------------------------------------------------------------
 
