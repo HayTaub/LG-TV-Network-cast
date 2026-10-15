@@ -1,0 +1,330 @@
+<Window x:Class="LGNetworkCast.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LG Network Cast" Width="440" Height="820"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" ResizeMode="NoResize"
+        FontFamily="{StaticResource Font}" FontSize="15" Foreground="{StaticResource Label}"
+        Icon="Resources/app.png" ShowInTaskbar="False" Topmost="False" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        WindowStartupLocation="Manual">
+
+    <Border Margin="14" CornerRadius="18" Background="{StaticResource Bg}" Effect="{StaticResource SoftShadow}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="44" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Title bar -->
+            <Grid Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseDown">
+                <TextBlock Text="LG Network Cast" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Secondary}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,12,0">
+                    <Button Style="{StaticResource PlainButton}" Width="26" Height="26" Click="Minimize_Click" ToolTip="Minimize" Background="#E6E6EB" Margin="0,0,8,0">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE921;" FontSize="9" Foreground="#6C6C70" />
+                    </Button>
+                    <Button Style="{StaticResource PlainButton}" Width="26" Height="26" Click="Close_Click" ToolTip="Hide to tray" Background="#E6E6EB">
+                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE8BB;" FontSize="9" Foreground="#6C6C70" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+
+            <!-- ===================== CAST ===================== -->
+            <ScrollViewer x:Name="CastPage" Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="0,0,0,24">
+                    <TextBlock Style="{StaticResource LargeTitle}" Text="Cast" />
+
+                    <Border x:Name="FirewallBanner" Style="{StaticResource CardBorder}" Background="#FFF1F0" Margin="16,0,16,14" Padding="14,12" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE7BA;" FontSize="20" Foreground="{StaticResource Red}" Margin="0,0,12,0" />
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Windows Firewall is blocking the TV" FontWeight="SemiBold" FontSize="14" />
+                                <TextBlock Text="The TV can't reach this PC until it's allowed." FontSize="12.5" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <Button Grid.Column="2" Style="{StaticResource TintButton}" Background="#FFDAD7" Foreground="#D70015" Height="34" Content="Fix" Click="FixFirewall_Click" />
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource CardBorder}">
+                        <Button Style="{StaticResource RowButton}" Click="GoToTvs_Click">
+                            <Grid Margin="14,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource IconTile}" Background="{StaticResource Blue}" Width="44" Height="44" CornerRadius="11">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE7F4;" FontSize="22" Foreground="White" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="TvNameText" Text="No TV" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                                        <Ellipse x:Name="TvStatusDot" Width="8" Height="8" Fill="{StaticResource Tertiary}" Margin="0,1,6,0" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="TvStatusText" Text="Tap to add a TV" FontSize="13" Foreground="{StaticResource Secondary}" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Style="{StaticResource Glyph}" Text="&#xE76C;" FontSize="12" Foreground="{StaticResource Tertiary}" />
+                            </Grid>
+                        </Button>
+                    </Border>
+
+                    <Border Style="{StaticResource CardBorder}" Margin="16,14,16,0" Padding="16">
+                        <StackPanel>
+                            <Button x:Name="ShareButton" Style="{StaticResource BigButton}" Click="Share_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock x:Name="ShareGlyph" Style="{StaticResource Glyph}" Text="&#xEC15;" FontSize="19" Foreground="White" Margin="0,0,10,0" />
+                                    <TextBlock x:Name="ShareText" Text="Start Sharing" Foreground="White" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="ClockButton" Style="{StaticResource TintButton}" Margin="0,10,0,0" Click="Clock_Click">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE823;" Margin="0,0,8,0" Foreground="{StaticResource Blue}" />
+                                    <TextBlock x:Name="ClockText" Text="Show Clock on TV" />
+                                </StackPanel>
+                            </Button>
+                            <TextBlock x:Name="StatusText" Margin="0,10,0,0" FontSize="13" Foreground="{StaticResource Secondary}"
+                                       HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="DISPLAY" />
+                    <Border Style="{StaticResource CardBorder}" Padding="12">
+                        <StackPanel>
+                            <Border Style="{StaticResource SegmentHost}">
+                                <UniformGrid x:Name="MonitorSegments" Rows="1" />
+                            </Border>
+                            <TextBlock x:Name="MonitorDetail" FontSize="13" Foreground="{StaticResource Secondary}" HorizontalAlignment="Center" Margin="0,8,0,0" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="TV" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Margin="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="10" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Style="{StaticResource TintButton}" Background="#E3F8E8" Foreground="#1F9D45" Click="TvOn_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE7E8;" Margin="0,0,8,0" Foreground="#1F9D45" />
+                                        <TextBlock Text="Turn On" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Grid.Column="2" Style="{StaticResource TintButton}" Background="#FFE9E7" Foreground="#E0352B" Click="TvOff_Click">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE7E8;" Margin="0,0,8,0" Foreground="#E0352B" />
+                                        <TextBlock Text="Turn Off" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                            <Border Style="{StaticResource RowSeparator}" />
+                            <Grid Margin="10,8,16,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="MuteButton" Style="{StaticResource PlainButton}" Width="36" Height="36" Click="Mute_Click" ToolTip="Mute">
+                                    <TextBlock x:Name="MuteGlyph" Style="{StaticResource Glyph}" Text="&#xE767;" FontSize="18" Foreground="{StaticResource Secondary}" />
+                                </Button>
+                                <Slider x:Name="VolumeSlider" Grid.Column="1" Style="{StaticResource IosSlider}" Margin="6,0,12,0" VerticalAlignment="Center"
+                                        ValueChanged="Volume_ValueChanged" />
+                                <TextBlock x:Name="VolumeText" Grid.Column="2" Text="–" Width="28" TextAlignment="Right" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ===================== TVS ===================== -->
+            <ScrollViewer x:Name="TvsPage" Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="0,0,0,24">
+                    <TextBlock Style="{StaticResource LargeTitle}" Text="TVs" />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="MY TVS" Margin="36,0,20,6" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel x:Name="MyTvsPanel" />
+                    </Border>
+                    <TextBlock Style="{StaticResource SectionFooter}" Text="Tap a TV to make it the default. Pairing shows a prompt on the TV — accept it with the remote." />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="ON THIS NETWORK" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <StackPanel x:Name="FoundPanel" />
+                            <Button x:Name="SearchButton" Style="{StaticResource RowButton}" Click="Search_Click">
+                                <Grid Margin="16,12">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock x:Name="SearchGlyph" Style="{StaticResource Glyph}" Text="&#xE721;" Foreground="{StaticResource Blue}" Margin="0,0,10,0" />
+                                        <TextBlock x:Name="SearchText" Text="Search for TVs" Foreground="{StaticResource Blue}" FontSize="15" />
+                                    </StackPanel>
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="ADD BY IP ADDRESS" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <Grid Margin="16,6,8,6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="ManualIpBox" Style="{StaticResource IosTextBox}" Height="34" KeyDown="ManualIp_KeyDown" />
+                            <TextBlock Text="e.g. 192.168.1.50" Foreground="{StaticResource Tertiary}" VerticalAlignment="Center" IsHitTestVisible="False"
+                                       Margin="2,0,0,0" x:Name="ManualIpHint" />
+                            <Button Grid.Column="1" Style="{StaticResource PlainButton}" Padding="10,6" Content="Add" FontWeight="SemiBold" Click="ManualAdd_Click" />
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ===================== SETTINGS ===================== -->
+            <ScrollViewer x:Name="SettingsPage" Grid.Row="1" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                <StackPanel Margin="0,0,0,24">
+                    <TextBlock Style="{StaticResource LargeTitle}" Text="Settings" />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="SHARING" Margin="36,0,20,6" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Margin="16,9">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource IconTile}" Background="{StaticResource Green}">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE7E8;" Foreground="White" FontSize="14" />
+                                </Border>
+                                <TextBlock Grid.Column="1" Style="{StaticResource RowText}" Text="Turn on TV when sharing starts" />
+                                <CheckBox x:Name="PowerOnToggle" Grid.Column="2" Style="{StaticResource IosSwitch}" Click="Toggle_Click" />
+                            </Grid>
+                            <Border Style="{StaticResource RowSeparator}" Margin="57,0,0,0" />
+                            <Grid Margin="16,9">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource IconTile}" Background="{StaticResource Red}">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE7E8;" Foreground="White" FontSize="14" />
+                                </Border>
+                                <TextBlock Grid.Column="1" Style="{StaticResource RowText}" Text="Turn off TV when sharing stops" />
+                                <CheckBox x:Name="PowerOffToggle" Grid.Column="2" Style="{StaticResource IosSwitch}" Click="Toggle_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="STREAM" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Margin="16,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="200" /></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowText}" Text="Mode" />
+                                <Border Grid.Column="1" Style="{StaticResource SegmentHost}">
+                                    <UniformGrid Rows="1">
+                                        <RadioButton x:Name="ModeFast" Style="{StaticResource Segment}" GroupName="Mode" Content="Fast" Click="Stream_Click" />
+                                        <RadioButton x:Name="ModeDlna" Style="{StaticResource Segment}" GroupName="Mode" Content="DLNA" Click="Stream_Click" />
+                                    </UniformGrid>
+                                </Border>
+                            </Grid>
+                            <Border Style="{StaticResource RowSeparator}" />
+                            <Grid Margin="16,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="200" /></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowText}" Text="Resolution" />
+                                <Border Grid.Column="1" Style="{StaticResource SegmentHost}">
+                                    <UniformGrid Rows="1">
+                                        <RadioButton x:Name="Res720" Style="{StaticResource Segment}" GroupName="Res" Content="720p" Click="Stream_Click" />
+                                        <RadioButton x:Name="Res1080" Style="{StaticResource Segment}" GroupName="Res" Content="1080p" Click="Stream_Click" />
+                                        <RadioButton x:Name="ResNative" Style="{StaticResource Segment}" GroupName="Res" Content="Native" Click="Stream_Click" />
+                                    </UniformGrid>
+                                </Border>
+                            </Grid>
+                            <Border Style="{StaticResource RowSeparator}" />
+                            <Grid Margin="16,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="200" /></Grid.ColumnDefinitions>
+                                <TextBlock Style="{StaticResource RowText}" Text="Quality" />
+                                <Border Grid.Column="1" Style="{StaticResource SegmentHost}">
+                                    <UniformGrid Rows="1">
+                                        <RadioButton x:Name="Rate6" Style="{StaticResource Segment}" GroupName="Rate" Content="Good" Click="Stream_Click" />
+                                        <RadioButton x:Name="Rate10" Style="{StaticResource Segment}" GroupName="Rate" Content="High" Click="Stream_Click" />
+                                        <RadioButton x:Name="Rate20" Style="{StaticResource Segment}" GroupName="Rate" Content="Max" Click="Stream_Click" />
+                                    </UniformGrid>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Style="{StaticResource SectionFooter}"
+                               Text="Fast streams H.264 to the TV with under a second of delay. DLNA uses the TV's own video player — no delay tuning is possible there, so expect about 12 seconds." />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="KEYBOARD SHORTCUTS" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel x:Name="HotkeyPanel" />
+                    </Border>
+                    <TextBlock x:Name="HotkeyFooter" Style="{StaticResource SectionFooter}"
+                               Text="Click a shortcut, then press the new keys. Backspace clears it. Shortcuts work everywhere, even when this window is closed." />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="GENERAL" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Margin="16,9">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource IconTile}" Background="#8E8E93">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE7E8;" Foreground="White" FontSize="14" />
+                                </Border>
+                                <TextBlock Grid.Column="1" Style="{StaticResource RowText}" Text="Start with Windows" />
+                                <CheckBox x:Name="AutostartToggle" Grid.Column="2" Style="{StaticResource IosSwitch}" Click="Toggle_Click" />
+                            </Grid>
+                            <Border Style="{StaticResource RowSeparator}" Margin="57,0,0,0" />
+                            <Grid Margin="16,13">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource IconTile}" Background="#5856D6">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE950;" Foreground="White" FontSize="14" />
+                                </Border>
+                                <TextBlock Grid.Column="1" Style="{StaticResource RowText}" Text="Video encoder" />
+                                <TextBlock x:Name="EncoderText" Grid.Column="2" Style="{StaticResource RowDetail}" Text="Detecting…" />
+                            </Grid>
+                            <Border Style="{StaticResource RowSeparator}" Margin="57,0,0,0" />
+                            <Button Style="{StaticResource RowButton}" Click="OpenLogs_Click">
+                                <Grid Margin="16,13">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                    <Border Style="{StaticResource IconTile}" Background="{StaticResource Orange}">
+                                        <TextBlock Style="{StaticResource Glyph}" Text="&#xE8B7;" Foreground="White" FontSize="14" />
+                                    </Border>
+                                    <TextBlock Grid.Column="1" Style="{StaticResource RowText}" Text="Open log folder" />
+                                    <TextBlock Grid.Column="2" Style="{StaticResource Glyph}" Text="&#xE76C;" FontSize="12" Foreground="{StaticResource Tertiary}" />
+                                </Grid>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock x:Name="AboutText" Style="{StaticResource SectionFooter}" HorizontalAlignment="Center" TextAlignment="Center" Margin="28,16,28,0" />
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Tab bar -->
+            <Border Grid.Row="2" Background="#F9F9F9" CornerRadius="0,0,18,18" BorderBrush="#DCDCDF" BorderThickness="0,1,0,0">
+                <UniformGrid Rows="1" Margin="0,0,0,6">
+                    <RadioButton x:Name="TabCast" Style="{StaticResource TabItem}" GroupName="Tabs" IsChecked="True" Click="Tab_Click">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xEC15;" FontSize="21" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                            <TextBlock Text="Cast" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,3,0,0"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="TabTvs" Style="{StaticResource TabItem}" GroupName="Tabs" Click="Tab_Click">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE7F4;" FontSize="21" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                            <TextBlock Text="TVs" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,3,0,0"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="TabSettings" Style="{StaticResource TabItem}" GroupName="Tabs" Click="Tab_Click">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource Glyph}" Text="&#xE713;" FontSize="21" Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                            <TextBlock Text="Settings" FontSize="10.5" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,3,0,0"
+                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=RadioButton}}" />
+                        </StackPanel>
+                    </RadioButton>
+                </UniformGrid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>LGNetworkCast</RootNamespace>
+    <AssemblyName>LGNetworkCast</AssemblyName>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.0.0</Version>
+    <Product>LG Network Cast</Product>
+    <Description>Share your PC screen to an LG webOS TV over the local network</Description>
+    <Copyright>MIT License</Copyright>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\viewer.html" LogicalName="viewer.html" />
+    <EmbeddedResource Include="Resources\clock.html" LogicalName="clock.html" />
+    <EmbeddedResource Include="Resources\tray-idle.ico" LogicalName="tray-idle.ico" />
+    <EmbeddedResource Include="Resources\tray-live.ico" LogicalName="tray-live.ico" />
+    <Resource Include="Resources\app.png" />
+    <None Remove="Resources\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('..\..\tools\ffmpeg.exe')">
+    <None Include="..\..\tools\ffmpeg.exe" Link="ffmpeg.exe" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

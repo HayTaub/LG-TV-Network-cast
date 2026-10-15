@@ -1,0 +1,9 @@
+# Build output
+bin/
+obj/
+dist/
+*.user
+.vs/
+
+# FFmpeg binary is downloaded by scripts/get-ffmpeg.ps1 (not committed)
+tools/ffmpeg.exe

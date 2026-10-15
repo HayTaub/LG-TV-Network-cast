@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LG Network Cast</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  video { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100vw; height: 100vh; object-fit: contain; background: #000; }
+  #status { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #8e8e93; font: 500 34px -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: .2px; }
+  #status small { margin-top: 14px; font-size: 22px; color: #636366; }
+  .spinner { width: 46px; height: 46px; margin-bottom: 28px; border-radius: 50%;
+             border: 4px solid #2c2c2e; border-top-color: #8e8e93; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<video id="v" autoplay muted playsinline></video>
+<div id="status"><div class="spinner"></div><span id="msg">Connecting to PC…</span><small>LG Network Cast</small></div>
+<script>
+// Kept ES5-compatible: older webOS releases ship Chromium 53-68.
+var CODEC = '{{CODEC}}';
+var video = document.getElementById('v');
+var statusEl = document.getElementById('status');
+var msgEl = document.getElementById('msg');
+var ms = null, sb = null, queue = [], ws = null, stopped = false, lastData = 0;
+
+function showStatus(text) { msgEl.textContent = text; statusEl.style.display = text ? 'flex' : 'none'; }
+
+function pump() {
+  if (!sb || sb.updating || !queue.length) return;
+  var total = 0, i;
+  for (i = 0; i < queue.length; i++) total += queue[i].byteLength;
+  var buf = new Uint8Array(total), off = 0;
+  for (i = 0; i < queue.length; i++) { buf.set(new Uint8Array(queue[i]), off); off += queue[i].byteLength; }
+  queue = [];
+  try { sb.appendBuffer(buf); } catch (e) { reset(); }
+}
+
+function reset() {
+  queue = []; sb = null;
+  if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} ws = null; }
+  if (!stopped) setTimeout(start, 800);
+}
+
+function start() {
+  if (stopped) return;
+  ms = new MediaSource();
+  video.src = URL.createObjectURL(ms);
+  ms.addEventListener('sourceopen', function () {
+    try { sb = ms.addSourceBuffer('video/mp4; codecs="' + CODEC + '"'); }
+    catch (e) { showStatus('This TV cannot decode the stream'); return; }
+    sb.mode = 'segments';
+    sb.addEventListener('updateend', pump);
+    ws = new WebSocket('ws://' + location.host + '/ws');
+    ws.binaryType = 'arraybuffer';
+    ws.onmessage = function (e) {
+      if (typeof e.data === 'string') {
+        if (e.data === 'stop') { stopped = true; video.removeAttribute('src'); video.load(); showStatus('Sharing ended'); }
+        return;
+      }
+      lastData = Date.now();
+      queue.push(e.data);
+      pump();
+    };
+    ws.onclose = function () { if (!stopped) { showStatus('Reconnecting…'); reset(); } };
+  });
+}
+
+// Keep latency low: play slightly faster when behind, jump only if far behind.
+setInterval(function () {
+  if (!video.buffered.length) return;
+  var end = video.buffered.end(video.buffered.length - 1);
+  var lag = end - video.currentTime;
+  if (video.paused) { var p = video.play(); if (p && p.catch) p.catch(function () {}); }
+  if (lag > 2) video.currentTime = end - 0.1;
+  else video.playbackRate = lag > 0.5 ? 1.15 : (lag > 0.25 ? 1.05 : 1);
+  if (video.readyState >= 2 && statusEl.style.display !== 'none') showStatus('');
+  if (sb && !sb.updating && video.currentTime > 15) { try { sb.remove(0, video.currentTime - 8); } catch (e) {} }
+  if (ws && ws.readyState === 1 && Date.now() % 5000 < 100) ws.send('lag ' + lag.toFixed(2));
+}, 100);
+
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,171 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Flip Clock</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  canvas { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+// Paper flip clock (port of HebrewFlipClock.cs): 24-hour HH:mm, rendered by the TV itself.
+// ES5 only - older webOS browsers are Chromium 53-68.
+(function () {
+  var FLIP_MS = 550;
+  var CARD = '#121212', DIGIT = '#b7b7b7';
+  var FONT = '"Helvetica Neue", Helvetica, Arial, "LG Smart UI", sans-serif';
+  // Use the PC's clock (sent when the page was served) so the TV shows the same time as the computer.
+  var offset = {{NOW}} - Date.now();
+
+  var canvas = document.getElementById('c');
+  var g = canvas.getContext('2d');
+  var W = 0, H = 0, cards = [], cache = {};
+  var shown = [null, null], previous = [null, null], flipStart = [-FLIP_MS, -FLIP_MS];
+
+  function now() { return new Date(Date.now() + offset); }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function ms() { return window.performance && performance.now ? performance.now() : Date.now(); }
+
+  function layout() {
+    var dpr = window.devicePixelRatio || 1;
+    W = Math.round(window.innerWidth * dpr);
+    H = Math.round(window.innerHeight * dpr);
+    canvas.width = W; canvas.height = H;
+    cache = {};
+    var n = 2, ratio = 0.94, gapK = 0.07;
+    var cardW = W * 0.86 / (n + gapK * (n - 1));
+    var cardH = cardW * ratio;
+    var maxH = H * 0.82;
+    if (cardH > maxH) { cardH = maxH; cardW = cardH / ratio; }
+    var gap = cardW * gapK;
+    var top = (H - cardH) / 2;
+    var left = (W - (cardW * n + gap * (n - 1))) / 2;
+    cards = [];
+    for (var i = 0; i < n; i++)
+      cards.push({ x: Math.round(left + i * (cardW + gap)), y: Math.round(top), w: Math.round(cardW), h: Math.round(cardH) });
+    draw(true);
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Bounding box of the painted pixels (used to center digits exactly like GraphicsPath.GetBounds()).
+  function inkBounds(text, em) {
+    var c = document.createElement('canvas');
+    c.width = Math.ceil(em * 2); c.height = Math.ceil(em * 1.6);
+    var x = c.getContext('2d');
+    x.font = 'bold ' + em + 'px ' + FONT;
+    x.textBaseline = 'alphabetic';
+    x.fillStyle = '#fff';
+    var base = Math.round(em * 1.2);
+    x.fillText(text, 0, base);
+    var d = x.getImageData(0, 0, c.width, c.height).data;
+    var minX = c.width, minY = c.height, maxX = -1, maxY = -1;
+    for (var yy = 0; yy < c.height; yy++)
+      for (var xx = 0; xx < c.width; xx++)
+        if (d[(yy * c.width + xx) * 4 + 3] > 40) {
+          if (xx < minX) minX = xx; if (xx > maxX) maxX = xx;
+          if (yy < minY) minY = yy; if (yy > maxY) maxY = yy;
+        }
+    return { left: minX, top: minY - base, width: maxX - minX + 1, height: maxY - minY + 1 };
+  }
+
+  function renderCard(text, w, h) {
+    var c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    var x = c.getContext('2d');
+    x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+    roundRect(x, 0, 0, w, h, w * 0.055);
+    x.fillStyle = CARD; x.fill();
+    var em = Math.round(h * 0.74);
+    var db = inkBounds(text, em), rb = inkBounds('08', em);
+    x.font = 'bold ' + em + 'px ' + FONT;
+    x.textBaseline = 'alphabetic';
+    x.fillStyle = DIGIT;
+    // Center horizontally on the actual digits, vertically on a fixed reference so both cards line up.
+    x.fillText(text, w / 2 - (db.left + db.width / 2), h / 2 - (rb.top + rb.height / 2));
+    return c;
+  }
+
+  function card(text, r) {
+    var k = text + '|' + r.w + 'x' + r.h;
+    return cache[k] || (cache[k] = renderCard(text, r.w, r.h));
+  }
+
+  // Top or bottom half of a card, squashed toward the hinge by 'scale', darkened by 'shade' (0-255).
+  function drawHalf(img, r, top, scale, shade) {
+    if (scale <= 0.001) return;
+    var half = r.h / 2, mid = r.y + half, hgt = half * scale;
+    var sy = top ? 0 : img.height / 2;
+    var dy = top ? mid - hgt : mid;
+    g.drawImage(img, 0, sy, img.width, img.height / 2, r.x, dy, r.w, hgt);
+    if (shade > 0) {
+      g.fillStyle = 'rgba(0,0,0,' + Math.min(1, shade / 255) + ')';
+      g.fillRect(r.x, dy, r.w, hgt);
+    }
+  }
+
+  function drawCard(i, t) {
+    var r = cards[i];
+    var cur = card(shown[i], r);
+    var p = (t - flipStart[i]) / FLIP_MS;
+    g.fillStyle = '#000';
+    g.fillRect(r.x - 2, r.y - 2, r.w + 4, r.h + 4);
+    if (p >= 1 || previous[i] === shown[i]) {
+      g.drawImage(cur, r.x, r.y);
+    } else {
+      var old = card(previous[i], r);
+      drawHalf(cur, r, true, 1, 0);
+      drawHalf(old, r, false, 1, 90 * Math.max(0, 0.5 - p));
+      var s;
+      if (p < 0.5) { s = Math.cos(p * Math.PI); drawHalf(old, r, true, s, 140 * (1 - s)); }
+      else { s = -Math.cos(p * Math.PI); drawHalf(cur, r, false, s, 110 * (1 - s)); }
+    }
+    var line = Math.max(1, r.h * 0.012);
+    g.fillStyle = '#000';
+    g.fillRect(r.x - 1, r.y + r.h / 2 - line / 2, r.w + 2, line);
+  }
+
+  function update(animate) {
+    var d = now(), vals = [pad(d.getHours()), pad(d.getMinutes())], changed = false;
+    for (var i = 0; i < 2; i++) {
+      if (shown[i] === vals[i]) continue;
+      previous[i] = shown[i] === null ? vals[i] : shown[i];
+      shown[i] = vals[i];
+      flipStart[i] = animate ? ms() : -FLIP_MS;
+      changed = true;
+    }
+    return changed;
+  }
+
+  var animating = false;
+  function draw(full) {
+    if (!cards.length) return;
+    if (full) { g.fillStyle = '#000'; g.fillRect(0, 0, W, H); }
+    var t = ms(), busy = false;
+    for (var i = 0; i < cards.length; i++) {
+      drawCard(i, t);
+      if (t - flipStart[i] < FLIP_MS + 30) busy = true;
+    }
+    if (busy) { animating = true; requestAnimationFrame(function () { draw(false); }); }
+    else animating = false;
+  }
+
+  update(false);
+  layout();
+  window.addEventListener('resize', layout);
+  setInterval(function () { if (update(true) && !animating) draw(false); }, 250);
+})();
+</script>
+</body>
+</html>
