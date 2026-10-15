@@ -124,6 +124,13 @@
                                     </StackPanel>
                                 </Button>
                             </Grid>
+                            <Border x:Name="WakeHint" Background="#FFF6E5" CornerRadius="9" Margin="12,0,12,12" Padding="12,9" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE946;" Foreground="{StaticResource Orange}" VerticalAlignment="Top" Margin="0,2,10,0" />
+                                    <TextBlock x:Name="WakeHintText" Grid.Column="1" FontSize="12.5" TextWrapping="Wrap" Foreground="#8A5300" />
+                                </Grid>
+                            </Border>
                             <Border Style="{StaticResource RowSeparator}" />
                             <Grid Margin="10,8,16,8">
                                 <Grid.ColumnDefinitions>
@@ -261,6 +268,33 @@
                     </Border>
                     <TextBlock x:Name="HotkeyFooter" Style="{StaticResource SectionFooter}"
                                Text="Click a shortcut, then press the new keys. Backspace clears it. Shortcuts work everywhere, even when this window is closed." />
+
+                    <TextBlock Style="{StaticResource SectionHeader}" Text="UPDATES" />
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Margin="16,10">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource IconTile}" Background="{StaticResource Blue}">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE895;" Foreground="White" FontSize="14" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock x:Name="VersionText" Style="{StaticResource RowText}" />
+                                    <TextBlock x:Name="UpdateStatusText" FontSize="12.5" Foreground="{StaticResource Secondary}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Button x:Name="UpdateButton" Grid.Column="2" Style="{StaticResource TintButton}" Height="32" Content="Check" Click="Update_Click" />
+                            </Grid>
+                            <Border Style="{StaticResource RowSeparator}" Margin="57,0,0,0" />
+                            <Grid Margin="16,9">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource IconTile}" Background="{StaticResource Green}">
+                                    <TextBlock Style="{StaticResource Glyph}" Text="&#xE896;" Foreground="White" FontSize="14" />
+                                </Border>
+                                <TextBlock Grid.Column="1" Style="{StaticResource RowText}" Text="Install updates automatically" />
+                                <CheckBox x:Name="AutoUpdateToggle" Grid.Column="2" Style="{StaticResource IosSwitch}" Click="Toggle_Click" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Style="{StaticResource SectionFooter}" Text="Updates install over the current version — your TVs, shortcuts and settings are kept. Automatic installs wait until nothing is showing on the TV." />
 
                     <TextBlock Style="{StaticResource SectionHeader}" Text="GENERAL" />
                     <Border Style="{StaticResource CardBorder}">

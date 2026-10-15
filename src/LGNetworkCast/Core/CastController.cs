@@ -18,6 +18,10 @@ namespace LGNetworkCast.Core
     {
         const int ViewerTimeoutMs = 12000;
 
+        public const string WakeHelp =
+            "To turn the TV on from the PC, enable on the TV: Settings → All Settings → General → Devices → " +
+            "TV On With Mobile → Turn on via Wi-Fi.";
+
         readonly Settings _settings;
         readonly SemaphoreSlim _tvLock = new SemaphoreSlim(1, 1);
         WebOsTv _tv;
@@ -33,6 +37,9 @@ namespace LGNetworkCast.Core
         public CastState State { get; private set; } = CastState.Idle;
         public string Status { get; private set; } = "";
         public bool ClockShowing { get; private set; }
+
+        /// <summary>The TV is showing its pairing prompt and waiting for the user.</summary>
+        public bool PairingPending { get; private set; }
 
         public event Action Changed;
 
@@ -144,23 +151,31 @@ namespace LGNetworkCast.Core
                 DropConnection();
                 await EnsureReachableAsync(tv).ConfigureAwait(false);
                 var c = new WebOsTv(tv.Ip, tv.ClientKey);
+                // Only when the TV itself rejects the saved key (e.g. after a factory reset) does it show a
+                // prompt; then we wait for the user on this same connection. Slowness never re-pairs.
+                c.PromptDisplayed += () =>
+                {
+                    PairingPending = true;
+                    Set(status: "Accept the connection prompt on the TV…");
+                };
                 try
                 {
-                    await c.ConnectAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    await c.ConnectAsync(TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 }
-                catch (TimeoutException)
+                catch
                 {
-                    // The saved key was rejected (e.g. the TV was reset): the TV now shows a pairing prompt.
-                    Set(status: "Accept the connection prompt on the TV…");
                     c.Dispose();
-                    c = new WebOsTv(tv.Ip, null);   // fresh pairing request
-                    await c.ConnectAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
+                    throw;
                 }
-                if (c.ClientKey != tv.ClientKey)
+                finally
                 {
-                    tv.ClientKey = c.ClientKey;
-                    _settings.Save();
+                    if (PairingPending) { PairingPending = false; Set(status: ""); }
                 }
+                var changed = false;
+                if (c.ClientKey != tv.ClientKey) { tv.ClientKey = c.ClientKey; changed = true; }
+                var wake = await c.GetWakeOnWifiAsync().ConfigureAwait(false);
+                if (wake.HasValue && wake != tv.WakeOnWifi) { tv.WakeOnWifi = wake; changed = true; }
+                if (changed) { _settings.Save(); Changed?.Invoke(); }
                 _tv = c;
                 _tvConnectedId = tv.Id;
                 return c;
@@ -201,6 +216,7 @@ namespace LGNetworkCast.Core
                 tv.ClientKey = c.ClientKey;
                 var macs = await c.GetMacAddressesAsync().ConfigureAwait(false);
                 foreach (var m in macs) if (!tv.Macs.Contains(m)) tv.Macs.Add(m);
+                tv.WakeOnWifi = await c.GetWakeOnWifiAsync().ConfigureAwait(false);
                 await c.ToastAsync("Connected to LG Network Cast").ConfigureAwait(false);
             }
             _settings.Save();
@@ -233,13 +249,13 @@ namespace LGNetworkCast.Core
             var tv = RequireTv();
             if (!await EnsureReachableAsync(tv).ConfigureAwait(false))
             {
+                if (tv.WakeOnWifi == false) throw new InvalidOperationException(WakeHelp);
                 Set(status: $"Turning on {tv.Name}…");
                 if (tv.Macs.Count == 0) throw new InvalidOperationException("The TV is off and its MAC address is unknown. Turn it on once with the remote and pair again.");
                 var deadline = DateTime.UtcNow.AddSeconds(35);
                 while (!WebOsTv.IsReachable(tv.Ip))
                 {
-                    if (DateTime.UtcNow > deadline)
-                        throw new TimeoutException("The TV did not wake up. On the TV enable Settings > General > Devices > \"Turn on via Wi-Fi\" (or \"Mobile TV On\").");
+                    if (DateTime.UtcNow > deadline) throw new TimeoutException("The TV did not wake up. " + WakeHelp);
                     WakeOnLan.Send(tv.Macs);
                     await Task.Delay(1500).ConfigureAwait(false);
                 }

@@ -11,7 +11,7 @@
     <AssemblyName>LGNetworkCast</AssemblyName>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Product>LG Network Cast</Product>
     <Description>Share your PC screen to an LG webOS TV over the local network</Description>
     <Copyright>MIT License</Copyright>

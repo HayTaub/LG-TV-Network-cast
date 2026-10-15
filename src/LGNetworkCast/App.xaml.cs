@@ -35,7 +35,9 @@ namespace LGNetworkCast
             _mutex = new Mutex(true, MutexName, out var first);
             if (!first)
             {
-                // Already running: ask the other instance to show its window.
+                // Already running: ask the other instance to show its window. This process was just started
+                // by the user, so it may hand its right to take the foreground to the running instance.
+                AllowSetForegroundWindow(-1);   // ASFW_ANY
                 try { EventWaitHandle.OpenExisting(ShowEventName).Set(); } catch { /* ignore */ }
                 Shutdown();
                 return;
@@ -72,6 +74,9 @@ namespace LGNetworkCast
             _tray.ContextMenuStrip.Opening += (s, ev) => BuildTrayMenu();
             _tray.MouseClick += (s, ev) => { if (ev.Button == Forms.MouseButtons.Left) ToggleWindow(); };
 
+            // Windows 11 hides new tray icons behind "^". Show ours the first time; later user choices are kept.
+            Task.Delay(TimeSpan.FromSeconds(3)).ContinueWith(_ => PromoteTrayIcon());
+
             _hotkeys = new HotkeyManager();
             RegisterHotkeys();
 
@@ -81,8 +86,40 @@ namespace LGNetworkCast
                 await Dispatcher.BeginInvoke(new Action(() => _window?.Refresh()));
             });
 
+            // Updates: check shortly after start, then every 6 hours.
+            var updateTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromHours(6) };
+            updateTimer.Tick += (s, ev) => _ = CheckForUpdatesAsync(userInitiated: false);
+            updateTimer.Start();
+            Task.Delay(TimeSpan.FromSeconds(20)).ContinueWith(_ => Dispatcher.BeginInvoke(new Action(() => _ = CheckForUpdatesAsync(false))));
+
             var startHidden = e.Args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
             if (!startHidden || Settings.Tvs.Count == 0) ShowWindow(Settings.Tvs.Count == 0 ? "tvs" : null);
+        }
+
+        /// <summary>
+        /// Marks this app's tray icon as "always shown" if the user has never chosen (no IsPromoted value yet).
+        /// Windows creates the entry once the icon has been shown, keyed by executable path.
+        /// </summary>
+        static void PromoteTrayIcon()
+        {
+            try
+            {
+                var exe = Assembly.GetExecutingAssembly().Location;
+                using (var root = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Control Panel\NotifyIconSettings"))
+                {
+                    if (root == null) return;
+                    foreach (var name in root.GetSubKeyNames())
+                        using (var key = root.OpenSubKey(name, writable: true))
+                        {
+                            if (key == null || !string.Equals(key.GetValue("ExecutablePath") as string, exe, StringComparison.OrdinalIgnoreCase)) continue;
+                            if (key.GetValue("IsPromoted") == null) key.SetValue("IsPromoted", 1, Microsoft.Win32.RegistryValueKind.DWord);
+                        }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not promote tray icon", ex);
+            }
         }
 
         static Icon LoadIcon(string name)
@@ -129,6 +166,61 @@ namespace LGNetworkCast
                 var message = ex is AggregateException ae ? ae.InnerException?.Message ?? ex.Message : ex.Message;
                 _window?.ShowError(message);
                 if (_window == null || !_window.IsVisible) _tray.ShowBalloonTip(5000, "LG Network Cast", message, Forms.ToolTipIcon.Warning);
+            }
+        }
+
+        // ---- Updates -----------------------------------------------------------------------------
+
+        public UpdateInfo AvailableUpdate { get; private set; }
+        public string UpdateStatus { get; private set; } = "";
+
+        /// <summary>Checks GitHub for a newer version. Installs it automatically when allowed and nothing is on the TV.</summary>
+        public async Task CheckForUpdatesAsync(bool userInitiated)
+        {
+            if (!Updater.IsConfigured(Settings)) { UpdateStatus = "Update source not configured"; _window?.Refresh(); return; }
+            try
+            {
+                UpdateStatus = "Checking…";
+                _window?.Refresh();
+                AvailableUpdate = await Updater.CheckAsync(Settings);
+                Settings.LastUpdateCheck = DateTime.Now;
+                Settings.Save();
+                UpdateStatus = AvailableUpdate == null ? "You're up to date" : $"Version {AvailableUpdate.Version.ToString(3)} is available";
+                if (AvailableUpdate != null)
+                {
+                    var idle = Cast.State == CastState.Idle && !Cast.ClockShowing;
+                    if (Settings.AutoUpdate && idle && !userInitiated) await InstallUpdateAsync();
+                    else if (!userInitiated)
+                        _tray.ShowBalloonTip(6000, "LG Network Cast", $"Version {AvailableUpdate.Version.ToString(3)} is available. Open the app to update.", Forms.ToolTipIcon.Info);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Update check failed", ex);
+                UpdateStatus = userInitiated ? "Could not check for updates: " + ex.Message : "";
+            }
+            _window?.Refresh();
+        }
+
+        public async Task InstallUpdateAsync()
+        {
+            if (AvailableUpdate == null) return;
+            try
+            {
+                UpdateStatus = "Downloading update…";
+                _window?.Refresh();
+                await Updater.DownloadAndLaunchAsync(AvailableUpdate, new Progress<int>(p =>
+                {
+                    UpdateStatus = $"Downloading update… {p}%";
+                    _window?.Refresh();
+                }));
+                ExitApp();   // the installer replaces the files and starts the new version
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Update failed", ex);
+                UpdateStatus = "Update failed: " + ex.Message;
+                _window?.Refresh();
             }
         }
 
@@ -214,9 +306,16 @@ namespace LGNetworkCast
             if (tab != null) _window.SelectTab(tab);
             _window.Show();
             if (_window.WindowState == WindowState.Minimized) _window.WindowState = WindowState.Normal;
+            // There is no taskbar button, so the window must come above everything else.
+            _window.Topmost = true;
             _window.Activate();
+            _window.Topmost = false;
+            _window.Focus();
             _window.Refresh();
         }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern bool AllowSetForegroundWindow(int processId);
 
         void ToggleWindow()
         {

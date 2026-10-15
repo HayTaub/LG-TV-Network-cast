@@ -109,6 +109,8 @@ namespace LGNetworkCast
         {
             FirewallBanner.Visibility = Firewall.IsBlocked ? Visibility.Visible : Visibility.Collapsed;
             var tv = S.DefaultTv;
+            WakeHint.Visibility = tv?.WakeOnWifi == false ? Visibility.Visible : Visibility.Collapsed;
+            WakeHintText.Text = "Turning the TV on from the PC is disabled on the TV. " + CastController.WakeHelp.Replace("To turn the TV on from the PC, enable", "Enable it");
             TvNameText.Text = tv?.Name ?? "No TV yet";
             if (tv == null) SetTvStatus("Tap to search for TVs", "Tertiary");
             else if (!tv.IsPaired) SetTvStatus("Not paired — tap to pair", "Orange");
@@ -459,6 +461,12 @@ namespace LGNetworkCast
             Rate10.IsChecked = S.BitrateMbps > 6 && S.BitrateMbps <= 12;
             Rate20.IsChecked = S.BitrateMbps > 12;
             EncoderText.Text = EncoderName(Encoder.Best);
+            AutoUpdateToggle.IsChecked = S.AutoUpdate;
+            VersionText.Text = $"Version {Updater.CurrentVersion.ToString(3)}";
+            UpdateStatusText.Text = AppRef.UpdateStatus;
+            UpdateStatusText.Visibility = string.IsNullOrEmpty(AppRef.UpdateStatus) ? Visibility.Collapsed : Visibility.Visible;
+            UpdateButton.Content = AppRef.AvailableUpdate != null ? "Update" : "Check";
+            UpdateButton.IsEnabled = Updater.IsConfigured(S) && !AppRef.UpdateStatus.StartsWith("Downloading") && AppRef.UpdateStatus != "Checking…";
             RefreshHotkeyRows();
         }
 
@@ -478,6 +486,7 @@ namespace LGNetworkCast
             if (_updatingUi) return;
             S.PowerOnWithShare = PowerOnToggle.IsChecked == true;
             S.PowerOffWithStop = PowerOffToggle.IsChecked == true;
+            S.AutoUpdate = AutoUpdateToggle.IsChecked == true;
             try { Settings.StartWithWindows = AutostartToggle.IsChecked == true; }
             catch (Exception ex) { ShowError("Could not change startup setting: " + ex.Message); }
             S.Save();
@@ -569,6 +578,12 @@ namespace LGNetworkCast
             _failedHotkeys = AppRef.RegisterHotkeys();
             Keyboard.ClearFocus();
             Refresh();
+        }
+
+        async void Update_Click(object sender, RoutedEventArgs e)
+        {
+            if (AppRef.AvailableUpdate != null) await AppRef.InstallUpdateAsync();
+            else await AppRef.CheckForUpdatesAsync(userInitiated: true);
         }
 
         void OpenLogs_Click(object sender, RoutedEventArgs e)

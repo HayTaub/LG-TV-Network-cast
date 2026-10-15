@@ -15,6 +15,7 @@ namespace LGNetworkCast.Core
         public List<string> Macs { get; set; } = new List<string>();
         public string ClientKey { get; set; }   // webOS pairing key
         public string DlnaDescriptionUrl { get; set; }
+        public bool? WakeOnWifi { get; set; }   // last known "Turn on via Wi-Fi" setting on the TV
 
         public bool IsPaired => !string.IsNullOrEmpty(ClientKey);
         public override string ToString() => Name;
@@ -51,6 +52,9 @@ namespace LGNetworkCast.Core
         public bool PowerOnWithShare { get; set; } = true;
         public bool PowerOffWithStop { get; set; }
         public HotkeySet Hotkeys { get; set; } = new HotkeySet();
+        public bool AutoUpdate { get; set; } = true;
+        public string UpdateRepo { get; set; }          // GitHub "owner/repo"; empty = built-in default
+        public DateTime LastUpdateCheck { get; set; }
 
         public TvDevice DefaultTv => Tvs.FirstOrDefault(t => t.Id == DefaultTvId) ?? Tvs.FirstOrDefault();
 

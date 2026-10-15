@@ -28,14 +28,20 @@ LG Network Cast is a small Windows tray app. It captures a monitor, encodes it t
 
 - Windows 10 or 11 (64-bit)
 - An LG TV with webOS (tested on webOS 5 / 2020 NanoCell). The PC and TV must be on the same network.
-- For turning the TV on from the PC, enable this on the TV: **Settings → General → Devices → Turn on via Wi-Fi** (on some models: *Mobile TV On*).
+- For turning the TV on from the PC, enable this on the TV once: **Settings → All Settings → General → Devices → TV On With Mobile → Turn on via Wi-Fi** (on some models: *Mobile TV On*). The TV doesn't let apps change this setting, but the app detects when it's off and tells you.
 
 ## Install
 
-1. Download `LGNetworkCast-Setup-x.y.z.exe` from [Releases](../../releases) and run it. No admin rights are needed.
+1. Download `LGNetworkCast-Setup-x.y.z.exe` from [Releases](https://github.com/HayTaub/LG-TV-Network-cast/releases) and run it. No admin rights are needed.
 2. The app opens on the **TVs** tab and searches the network. Click **Add** next to your TV.
 3. **Accept the prompt on the TV** with the remote. This pairs the app with the TV once.
 4. The first time you share, Windows asks whether LG Network Cast may use the network. Click **Allow**, otherwise the TV can't reach the PC.
+
+## Updates
+
+The app checks GitHub Releases for new versions and installs them **over the existing install**. You never need to uninstall, and your TVs, shortcuts and settings are kept. With **Settings → Install updates automatically** turned on, it waits until nothing is showing on the TV, then updates and restarts in the tray. Otherwise, click **Update** in Settings.
+
+To publish an update: bump `<Version>` in `src/LGNetworkCast/LGNetworkCast.csproj`, run `scripts\build.ps1`, and create a GitHub release tagged `vX.Y.Z` with `dist\LGNetworkCast-Setup-X.Y.Z.exe` attached. The repository the app checks is `Updater.DefaultRepo` (it can be overridden with `UpdateRepo` in `settings.json`).
 
 ## Default shortcuts
 
@@ -98,7 +104,8 @@ The script downloads `ffmpeg.exe` into `tools\` (which git ignores), builds `src
 |---|---|
 | TV not found | Make sure the TV is on and on the same network/subnet. Try **TVs → Add by IP address**. |
 | Page opens on the TV but stays on "Connecting to PC…" | Windows Firewall is blocking the app. Allow *LG Network Cast* under *Windows Security → Firewall → Allow an app*. |
-| TV doesn't turn on from the PC | Enable *Turn on via Wi-Fi* / *Mobile TV On* on the TV. A TV that has been fully unplugged can only be woken with the remote. |
+| TV doesn't turn on from the PC | Enable *Turn on via Wi-Fi* on the TV (see Requirements). The app shows an orange hint when it's off. A TV that has been unplugged from power can only be woken with the remote. |
+| Tray icon not visible | Windows 11 hides new tray icons behind **^**. The app un-hides its icon automatically (takes effect after the next sign-in), or drag it onto the taskbar yourself. |
 | No sound on the TV | Sound stays on the PC (video only, by design for low delay). |
 | Anything else | **Settings → Open log folder** and check `log.txt`. |
 

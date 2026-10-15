@@ -75,6 +75,8 @@ namespace LGNetworkCast.Core
                     receives.Remove(pair.Key);
                 }
             }
+            // Pending receives fault when their socket closes; observe them so they don't surface as errors.
+            foreach (var t in receives.Values) t.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted);
             foreach (var s in sockets) s.Dispose();
 
             var tvs = new List<TvDevice>();

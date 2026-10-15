@@ -49,6 +49,8 @@ namespace LGNetworkCast.Core
                     using (var c = new TcpClient())
                     {
                         var t = c.ConnectAsync(ip, port);
+                        // Observe late failures of abandoned attempts so they don't surface as unobserved exceptions.
+                        t.ContinueWith(x => _ = x.Exception, TaskContinuationOptions.OnlyOnFaulted);
                         if (t.Wait(timeoutMs) && c.Connected) return true;
                     }
                 }
@@ -60,8 +62,18 @@ namespace LGNetworkCast.Core
             return false;
         }
 
-        /// <summary>Connects and registers. If not yet paired, the TV shows a prompt; waits up to <paramref name="pairTimeout"/>.</summary>
-        public async Task ConnectAsync(TimeSpan pairTimeout)
+        /// <summary>True once the TV has put a pairing prompt on screen for this connection.</summary>
+        public bool PromptShown { get; private set; }
+
+        /// <summary>Raised when the TV shows its "allow this device" prompt (the saved key was not accepted).</summary>
+        public event Action PromptDisplayed;
+
+        /// <summary>
+        /// Connects and registers. Waits <paramref name="timeout"/> for the TV to answer; if the TV shows a
+        /// pairing prompt meanwhile, waits up to <paramref name="promptTimeout"/> more for the user to accept.
+        /// A slow TV never causes a new pairing request.
+        /// </summary>
+        public async Task ConnectAsync(TimeSpan timeout, TimeSpan? promptTimeout = null)
         {
             Exception last = null;
             foreach (var uri in new[] { $"ws://{_ip}:3000", $"wss://{_ip}:3001" })
@@ -95,8 +107,13 @@ namespace LGNetworkCast.Core
                 ["payload"] = RegistrationPayload(ClientKey),
             }).ConfigureAwait(false);
 
-            var done = await Task.WhenAny(registered.Task, Task.Delay(pairTimeout)).ConfigureAwait(false);
-            if (done != registered.Task) throw new TimeoutException("The TV did not accept the connection. Accept the prompt on the TV screen.");
+            var done = await Task.WhenAny(registered.Task, Task.Delay(timeout)).ConfigureAwait(false);
+            if (done != registered.Task && PromptShown)
+                done = await Task.WhenAny(registered.Task, Task.Delay(promptTimeout ?? TimeSpan.FromSeconds(60))).ConfigureAwait(false);
+            if (done != registered.Task)
+                throw new TimeoutException(PromptShown
+                    ? "The connection prompt on the TV was not accepted."
+                    : "The TV did not answer in time.");
             var payload = await registered.Task.ConfigureAwait(false);
             ClientKey = payload.Str("client-key") ?? ClientKey;
         }
@@ -119,7 +136,15 @@ namespace LGNetworkCast.Core
                     var type = msg.Str("type");
                     if (id == null || !_pending.TryGetValue(id, out var tcs)) continue;
                     // Registration first answers "response" (prompt shown) and later "registered".
-                    if (id == "register_0" && type == "response") continue;
+                    if (id == "register_0" && type == "response")
+                    {
+                        if (msg.Obj("payload").Str("pairingType") == "PROMPT" && !PromptShown)
+                        {
+                            PromptShown = true;
+                            PromptDisplayed?.Invoke();
+                        }
+                        continue;
+                    }
                     _pending.TryRemove(id, out _);
                     if (type == "error") tcs.TrySetException(new InvalidOperationException(msg.Str("error") ?? "TV error"));
                     else tcs.TrySetResult(msg.Obj("payload") ?? new Dictionary<string, object>());
@@ -255,6 +280,28 @@ namespace LGNetworkCast.Core
         {
             try { return (await RequestAsync("com.webos.applicationManager/getForegroundAppInfo").ConfigureAwait(false)).Str("appId"); }
             catch { return null; }
+        }
+
+        /// <summary>
+        /// Whether the TV keeps Wi-Fi listening for Wake-on-LAN while off ("Turn on via Wi-Fi").
+        /// Readable over SSAP but not writable, so the user must enable it on the TV.
+        /// </summary>
+        public async Task<bool?> GetWakeOnWifiAsync()
+        {
+            try
+            {
+                var r = await RequestAsync("settings/getSystemSettings", new Dictionary<string, object>
+                {
+                    ["category"] = "network",
+                    ["keys"] = new[] { "wolwowlOnOff" },
+                }).ConfigureAwait(false);
+                var v = r.Obj("settings").Str("wolwowlOnOff");
+                return v == null ? (bool?)null : v == "true";
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public async Task<List<string>> GetMacAddressesAsync()
